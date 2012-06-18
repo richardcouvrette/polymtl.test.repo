@@ -1,0 +1,1814 @@
+<?xml version="1.0"?>
+
+<project name="portal-dist" basedir="." default="dist" xmlns:antelope="antlib:ise.antelope.tasks">
+	<import file="build.xml" />
+
+	<target name="build-dist-geronimo">
+		<antcall target="unzip-geronimo" />
+
+		<echo file="app.server.${user.name}.properties">app.server.type=geronimo</echo>
+
+		<antcall target="deploy" inheritAll="false" />
+
+		<delete file="app.server.${user.name}.properties" />
+
+		<antcall target="deploy-plugins">
+			<param name="deployer.dest.dir" value="${app.server.geronimo.deploy.dir}" />
+			<param name="deployer.app.server.type" value="geronimo" />
+			<param name="deployer.app.server.lib.portal.dir" value="${app.server.geronimo.lib.portal.dir}" />
+		</antcall>
+	</target>
+
+	<target name="build-dist-glassfish">
+		<antcall target="unzip-glassfish" />
+
+		<echo file="app.server.${user.name}.properties">app.server.type=glassfish</echo>
+
+		<ant target="deploy" inheritAll="false" />
+
+		<delete file="app.server.${user.name}.properties" />
+
+		<antcall target="deploy-plugins">
+			<param name="deployer.dest.dir" value="${app.server.glassfish.deploy.dir}" />
+			<param name="deployer.app.server.type" value="glassfish" />
+			<param name="deployer.app.server.lib.portal.dir" value="lib/portal" />
+		</antcall>
+	</target>
+
+	<target name="build-dist-jboss">
+		<antcall target="unzip-jboss" />
+
+		<echo file="app.server.${user.name}.properties">app.server.type=jboss</echo>
+
+		<delete dir="${project.dir}/portal-web/classes" />
+
+		<ant target="deploy" inheritAll="false" />
+
+		<delete file="app.server.${user.name}.properties" />
+
+		<antcall target="deploy-plugins">
+			<param name="deployer.dest.dir" value="${app.server.parent.dir}/jboss-${app.server.jboss.version}/standalone/deployments" />
+			<param name="deployer.app.server.type" value="jboss" />
+			<param name="deployer.app.server.lib.portal.dir" value="${app.server.parent.dir}/jboss-${app.server.jboss.version}/standalone/deployments/ROOT.war/WEB-INF/lib" />
+		</antcall>
+	</target>
+
+	<target name="build-dist-jetty">
+		<antcall target="unzip-jetty" />
+
+		<echo file="app.server.${user.name}.properties">app.server.type=jetty</echo>
+
+		<delete dir="${project.dir}/portal-web/classes" />
+
+		<ant target="deploy" inheritAll="false" />
+
+		<delete file="app.server.${user.name}.properties" />
+
+		<antcall target="deploy-plugins">
+			<param name="deployer.dest.dir" value="${app.server.jetty.deploy.dir}" />
+			<param name="deployer.app.server.type" value="jetty" />
+			<param name="deployer.app.server.lib.portal.dir" value="${app.server.jetty.lib.portal.dir}" />
+		</antcall>
+	</target>
+
+	<target name="build-dist-jonas">
+		<antcall target="unzip-jonas" />
+
+		<echo file="app.server.${user.name}.properties">app.server.type=jonas</echo>
+
+		<delete dir="${project.dir}/portal-web/classes" />
+
+		<ant target="deploy" inheritAll="false" />
+
+		<delete file="app.server.${user.name}.properties" />
+
+		<antcall target="deploy-plugins">
+			<param name="deployer.dest.dir" value="${app.server.jonas.deploy.dir}" />
+			<param name="deployer.app.server.type" value="jonas" />
+			<param name="deployer.app.server.lib.portal.dir" value="${app.server.jonas.lib.portal.dir}" />
+		</antcall>
+	</target>
+
+	<target name="build-dist-language-hook">
+		<if>
+			<available file="${lp.plugins.dir}/hooks/liferay-language-${locale.current}-hook" />
+			<then>
+				<delete dir="${lp.plugins.dir}/hooks/liferay-language-${locale.current}-hook" />
+			</then>
+		</if>
+
+		<exec dir="${lp.plugins.dir}/hooks" executable="cmd.exe">
+			<arg line="/c create.bat liferay-language-${locale.current} &quot;Liferay Portal Language Pack ${locale.current}&quot;" />
+		</exec>
+
+		<echo file="${lp.plugins.dir}/hooks/liferay-language-${locale.current}-hook/docroot/WEB-INF/liferay-hook.xml"><![CDATA[<?xml version="1.0"?>
+<!DOCTYPE hook PUBLIC "-//Liferay//DTD Hook 6.1.0//EN" "http://www.liferay.com/dtd/liferay-hook_6_1_0.dtd">
+
+<hook>
+	<language-properties>content/Language-ext_${locale.current}.properties</language-properties>
+</hook>]]></echo>
+
+		<copy file="portal-impl/src/content/Language_${locale.current}.properties" tofile="${lp.plugins.dir}/hooks/liferay-language-${locale.current}-hook/docroot/WEB-INF/src/content/Language-ext_${locale.current}.properties" />
+
+		<if>
+			<not>
+				<equals arg1="${lp.plugins.minor.version}" arg2="1" />
+			</not>
+			<then>
+				<replace file="${lp.plugins.dir}/hooks/liferay-language-${locale.current}-hook/docroot/WEB-INF/liferay-plugin-package.properties">
+					<replacefilter token="module-incremental-version=1" value="module-incremental-version=${lp.plugins.minor.version}" />
+				</replace>
+			</then>
+		</if>
+
+		<ant dir="${lp.plugins.dir}/hooks/liferay-language-${locale.current}-hook" target="war" inheritAll="false" />
+	</target>
+
+	<target name="build-dist-language-hooks">
+		<exec executable="cmd">
+			<arg line="/c dir /b ${project.dir}\portal-impl\src\content\ > ${project.dir}\output.txt" />
+		</exec>
+
+		<loadfile property="output.txt.content" srcFile="${project.dir}\output.txt" />
+
+		<delete file="output.txt" />
+
+		<script classpathref="project.classpath" language="beanshell">
+			String outputTxtContent = project.getProperty("output.txt.content");
+
+			if (outputTxtContent.contains("File Not Found")) {
+				outputTxtContent = "";
+			}
+
+			String locales = outputTxtContent.replaceAll("\r\n", ",");
+
+			locales = locales.replaceAll("Language.properties,", "");
+			locales = locales.replaceAll("Language_", "");
+			locales = locales.replaceAll(".properties", "");
+
+			if (locales.endsWith(",")) {
+				locales = locales.substring(0, locales.length() - 1);
+			}
+
+			project.setProperty("locale.list", locales);
+		</script>
+
+		<for list="${locale.list}" param="locale.current">
+			<sequential>
+				<antcall target="build-dist-language-hook">
+					<param name="locale.current" value="@{locale.current}" />
+				</antcall>
+			</sequential>
+		</for>
+	</target>
+
+	<target name="build-dist-plugins">
+		<echo file="${lp.plugins.dir}/build.${user.name}.properties">plugins.includes=${lp.plugins.includes.required}</echo>
+
+		<ant dir="${lp.plugins.dir}" target="all" inheritAll="false" />
+	</target>
+
+	<target name="build-dist-resin">
+		<antcall target="unzip-resin" />
+
+		<echo file="app.server.${user.name}.properties">app.server.type=resin</echo>
+
+		<delete dir="${project.dir}/portal-web/classes" />
+
+		<ant target="deploy" inheritAll="false" />
+
+		<delete file="app.server.${user.name}.properties" />
+
+		<antcall target="deploy-plugins">
+			<param name="deployer.dest.dir" value="${app.server.resin.deploy.dir}" />
+			<param name="deployer.app.server.type" value="resin" />
+			<param name="deployer.app.server.lib.portal.dir" value="${app.server.resin.lib.portal.dir}" />
+		</antcall>
+	</target>
+
+	<target name="build-dist-sql-oracle">
+		<ant dir="sql" target="rebuild-oracle" inheritAll="false" />
+		<ant dir="sql" target="export-oracle" inheritAll="false" />
+
+		<move file="sql/lportal.dmp" tofile="dist/liferay-portal-sql-oracle-${lp.version}.dmp" />
+	</target>
+
+	<target name="build-dist-tcat">
+		<property name="tcat.dir" value="${app.server.parent.dir}/tcat-6.4.4" />
+		<property name="tcat.zip.name" value="TcatServer-6.4.4.zip" />
+		<property name="tcat.zip.url" value="http://files.liferay.com/public/bundles/trunk/${tcat.zip.name}" />
+
+		<script classpathref="project.classpath" language="beanshell">
+			String lpVersion = project.getProperty("lp.version");
+
+			String lpVersionTcat = lpVersion.replace(".", "_");
+
+			project.setProperty("lp.version.tcat", lpVersionTcat);
+		</script>
+
+		<delete dir="${tcat.dir}" />
+
+		<antcall target="build-dist-tcat-profile" />
+
+		<antcall target="build-dist-tcat-tomcat" />
+
+		<if>
+			<not>
+				<available file="${app.server.parent.dir}/${tcat.zip.name}" />
+			</not>
+			<then>
+				<mkdir dir="${app.server.parent.dir}" />
+
+				<get
+					dest="${app.server.parent.dir}/${tcat.zip.name}"
+					src="${tcat.zip.url}"
+					verbose="true"
+				/>
+			</then>
+		</if>
+
+		<antcall target="build-dist-tcat-admin" />
+		<antcall target="build-dist-tcat-agent" />
+	</target>
+
+	<target name="build-dist-tcat-admin">
+		<copy file="tools/servers/tcat/tcat-init.groovy" todir="${tcat.dir}/admin" />
+
+		<unzip
+			dest="${tcat.dir}/admin/webapps"
+			src="${app.server.parent.dir}/${tcat.zip.name}"
+		>
+			<patternset
+				includes="**/console.war"
+			/>
+			<flattenmapper />
+		</unzip>
+
+		<mkdir dir="${tcat.dir}/admin/tcat_init/profiles" />
+
+		<copy file="dist/liferay-portal-tcat-profile-${lp.version}.zip" todir="${tcat.dir}/admin/tcat_init/profiles" />
+
+		<mkdir dir="${tcat.dir}/admin/tcat_init/scripts" />
+
+		<copy file="tools/servers/tcat/LiferayDeployerFactory.groovy" todir="${tcat.dir}/admin/tcat_init/scripts" />
+
+		<antcall target="build-dist-tcat-admin-webapps-plugins" />
+		<antcall target="build-dist-tcat-admin-webapps-portal" />
+	</target>
+
+	<target name="build-dist-tcat-admin-webapps-plugins">
+		<echo file="${lp.plugins.dir}/build.${user.name}.properties">plugins.includes=${lp.plugins.includes.tcat}</echo>
+
+		<ant dir="${lp.plugins.dir}" target="all" inheritAll="false" />
+
+		<copy todir="${tcat.dir}/admin/tcat_init/webapps/${lp.version.tcat}">
+			<fileset dir="${lp.plugins.dir}/dist" includes="*.war" />
+		</copy>
+
+		<ant dir="${lp.plugins.dir}" target="clean" inheritAll="false" />
+
+		<echo file="${lp.plugins.dir}/build.${user.name}.properties">plugins.includes=${lp.plugins.includes.required}</echo>
+
+		<ant dir="${lp.plugins.dir}" target="all" inheritAll="false" />
+	</target>
+
+	<target name="build-dist-tcat-admin-webapps-portal">
+		<tstamp>
+			<format property="tstamp.value" pattern="yyyyMMddkkmmssSSS" />
+		</tstamp>
+
+		<mkdir dir="${tstamp.value}/META-INF" />
+
+		<echo file="${tstamp.value}/META-INF/context.xml"><![CDATA[<?xml version="1.0"?>
+			<Context path="" crossContext="true">
+				<Realm
+					className="org.apache.catalina.realm.JAASRealm"
+					appName="PortalRealm"
+					userClassNames="com.liferay.portal.kernel.security.jaas.PortalPrincipal"
+					roleClassNames="com.liferay.portal.kernel.security.jaas.PortalRole"
+				/>
+			</Context>]]>
+		</echo>
+
+		<mkdir dir="${tcat.dir}/admin/tcat_init/webapps/${lp.version.tcat}" />
+
+		<copy file="dist/liferay-portal-${lp.version}.war" tofile="${tcat.dir}/admin/tcat_init/webapps/${lp.version.tcat}/ROOT.war" />
+
+		<zip
+			basedir="${tstamp.value}"
+			destfile="${tcat.dir}/admin/tcat_init/webapps/${lp.version.tcat}/ROOT.war"
+			update="yes"
+		/>
+
+		<delete dir="${tstamp.value}" />
+	</target>
+
+	<target name="build-dist-tcat-agent">
+		<echo file="${tcat.dir}/agent/conf/Catalina/localhost/agent.xml"><![CDATA[<?xml version="1.0"?>
+			<Context privileged="true" />]]>
+		</echo>
+
+		<unzip
+			dest="${tcat.dir}/agent/webapps"
+			src="${app.server.parent.dir}/${tcat.zip.name}"
+		>
+			<patternset
+				includes="**/agent.war"
+			/>
+			<flattenmapper />
+		</unzip>
+	</target>
+
+	<target name="build-dist-tcat-profile">
+		<mkdir dir="${tcat.dir}/profile/files/lib/ext" />
+
+		<copy file="tools/servers/tcat/profile.xml" todir="${tcat.dir}/profile">
+			<filterset>
+				<filter token="lp.version" value="${lp.version}" />
+			</filterset>
+		</copy>
+
+		<copy todir="${tcat.dir}/profile/files/lib/ext">
+			<fileset dir="${app.server.tomcat.dir}/lib/ext" />
+		</copy>
+
+		<echo file="${tcat.dir}/profile/files/lib/ext/portal-bundle.properties">auto.deploy.deploy.dir=${catalina.base}/deploy</echo>
+
+		<delete file="dist/liferay-portal-tcat-profile-${lp.version}.zip" failonerror="false" />
+
+		<zip destfile="dist/liferay-portal-tcat-profile-${lp.version}.zip">
+			<zipfileset
+				dir="${tcat.dir}/profile"
+			/>
+		</zip>
+	</target>
+
+	<target name="build-dist-tcat-tomcat">
+		<mkdir dir="${tcat.dir}/tomcat" />
+
+		<copy todir="${tcat.dir}/tomcat">
+			<fileset
+				dir="${app.server.tomcat.dir}"
+				excludes="**/ROOT.xml,logs/**,temp/**,webapps/**,work/**"
+			/>
+		</copy>
+
+		<mkdir dir="${tcat.dir}/tomcat/temp" />
+
+		<replace file="${tcat.dir}/tomcat/conf/server.xml">
+			<replacetoken><![CDATA[xmlValidation="false" xmlNamespaceAware="false" deployXML="false">]]></replacetoken>
+			<replacevalue><![CDATA[xmlValidation="false" xmlNamespaceAware="false">]]></replacevalue>
+		</replace>
+
+		<move file="${tcat.dir}/tomcat" tofile="${tcat.dir}/admin" />
+
+		<mkdir dir="${tcat.dir}/agent" />
+
+		<copy todir="${tcat.dir}/agent">
+			<fileset dir="${tcat.dir}/admin" />
+		</copy>
+	</target>
+
+	<target name="build-dist-tomcat">
+		<antcall target="unzip-tomcat" />
+
+		<echo file="app.server.${user.name}.properties">app.server.type=tomcat</echo>
+
+		<delete dir="${project.dir}/portal-web/classes" />
+
+		<ant target="deploy" inheritAll="false" />
+
+		<delete file="app.server.${user.name}.properties" />
+
+		<antcall target="deploy-plugins">
+			<param name="deployer.dest.dir" value="${app.server.parent.dir}/tomcat-${app.server.tomcat.version}/webapps" />
+			<param name="deployer.app.server.type" value="tomcat" />
+			<param name="deployer.app.server.lib.portal.dir" value="${app.server.parent.dir}/tomcat-${app.server.tomcat.version}/webapps/ROOT/WEB-INF/lib" />
+		</antcall>
+	</target>
+
+	<target name="build-shelf">
+		<exec dir="${project.dir}" executable="cmd.exe" os="${os.windows}">
+			<arg line="/c svn --username ${svn.username} --password ${svn.password} update -r ${svn.revision}" />
+		</exec>
+
+		<exec dir="${lp.source.dir}" executable="cmd.exe" os="${os.windows}">
+			<arg line="/c svn --username ${svn.username} --password ${svn.password} update -r ${svn.revision}" />
+		</exec>
+
+		<exec dir="${lp.plugins.dir}" executable="cmd.exe" os="${os.windows}">
+			<arg line="/c svn --username ${svn.username} --password ${svn.password} update -r ${svn.revision}" />
+		</exec>
+
+		<if>
+			<or>
+				<not>
+					<isset property="shelf.drive" />
+				</not>
+				<not>
+					<isset property="shelf.path" />
+				</not>
+				<not>
+					<isset property="shelf.branch" />
+				</not>
+				<not>
+					<isset property="shelf.version" />
+				</not>
+			</or>
+			<then>
+				<fail>
+.
+
+Please set the appropriate properties. Do not run this task unless you really
+know what you are doing as it can cause loss of data.
+				</fail>
+			</then>
+		</if>
+
+		<exec executable="cmd">
+			<arg line="/c format /v:${shelf.version} /q /y ${shelf.drive}" />
+		</exec>
+
+		<exec executable="xcopy">
+			<arg line="/e /i /q /y \bundles ${shelf.drive}\bundles" />
+		</exec>
+
+		<exec executable="xcopy">
+			<arg line="/e /i /q /h /y \vanilla ${shelf.drive}\projects" />
+		</exec>
+
+		<exec executable="xcopy">
+			<arg line="/e /i /q /h /y \vanilla ${shelf.drive}\vanilla" />
+		</exec>
+
+		<exec dir="${shelf.drive}\projects\liferay.public\portal\${shelf.branch}" executable="cmd.exe" os="${os.windows}">
+			<arg line="/c svn --username ${svn.username} --password ${svn.password} copy -r ${svn.revision} -m 'From: ${svn.username} &lt;${svn.username}@liferay.com&gt;' ${shelf.path}/${shelf.branch} ${shelf.path}/${shelf.version}" />
+		</exec>
+
+		<exec dir="${shelf.drive}\projects\liferay.public\portal\${shelf.branch}" executable="cmd.exe" os="${os.windows}">
+			<arg line="/c svn switch ${shelf.path}/${shelf.version}" />
+		</exec>
+
+		<exec dir="${shelf.drive}\vanilla\liferay.public\portal\${shelf.branch}" executable="cmd.exe" os="${os.windows}">
+			<arg line="/c svn switch ${shelf.path}/${shelf.version}" />
+		</exec>
+	</target>
+
+	<target name="deploy-plugins">
+		<delete includeemptydirs="true" failonerror="false">
+			<fileset
+				dir="${deployer.dest.dir}"
+				includes="*-ext/**,*-hook/**,*-layouttpl/***-portlet/**,*-theme/**"
+			/>
+		</delete>
+
+		<java
+			classname="com.liferay.portal.tools.deploy.ExtDeployer"
+			classpathref="project.classpath"
+			fork="true"
+			newenvironment="true"
+		>
+
+			<!-- Required Arguments -->
+
+			<jvmarg value="-Dexternal-properties=com/liferay/portal/tools/dependencies/portal-tools.properties" />
+			<jvmarg value="-Dliferay.lib.portal.dir=${deployer.app.server.lib.portal.dir}" />
+			<jvmarg value="-Ddeployer.base.dir=${lp.plugins.dir}/dist" />
+			<jvmarg value="-Ddeployer.dest.dir=${deployer.dest.dir}" />
+			<jvmarg value="-Ddeployer.app.server.type=${deployer.app.server.type}" />
+			<jvmarg value="-Ddeployer.unpack.war=true" />
+			<jvmarg value="-Ddeployer.file.pattern=*-ext-*.war" />
+
+			<!-- Optional Arguments -->
+
+			<jvmarg value="-Ddeployer.tomcat.lib.dir=${app.server.tomcat.lib.global.dir}" />
+
+			<!-- Dependent Libraries -->
+
+			<arg value="util-java/util-java.jar" />
+		</java>
+
+		<java
+			classname="com.liferay.portal.tools.deploy.HookDeployer"
+			classpathref="project.classpath"
+			fork="true"
+			newenvironment="true"
+		>
+
+			<!-- Required Arguments -->
+
+			<jvmarg value="-Dexternal-properties=com/liferay/portal/tools/dependencies/portal-tools.properties" />
+			<jvmarg value="-Dliferay.lib.portal.dir=${deployer.app.server.lib.portal.dir}" />
+			<jvmarg value="-Ddeployer.base.dir=${lp.plugins.dir}/dist" />
+			<jvmarg value="-Ddeployer.dest.dir=${deployer.dest.dir}" />
+			<jvmarg value="-Ddeployer.app.server.type=${deployer.app.server.type}" />
+			<jvmarg value="-Ddeployer.unpack.war=true" />
+			<jvmarg value="-Ddeployer.file.pattern=*-hook-*.war" />
+
+			<!-- Optional Arguments -->
+
+			<jvmarg value="-Ddeployer.tomcat.lib.dir=${app.server.tomcat.lib.global.dir}" />
+
+			<!-- Dependent Libraries -->
+
+			<arg value="util-java/util-java.jar" />
+		</java>
+
+		<java
+			classname="com.liferay.portal.tools.deploy.LayoutTemplateDeployer"
+			classpathref="project.classpath"
+			fork="true"
+			newenvironment="true"
+		>
+
+			<!-- Required Arguments -->
+
+			<jvmarg value="-Dexternal-properties=com/liferay/portal/tools/dependencies/portal-tools.properties" />
+			<jvmarg value="-Dliferay.lib.portal.dir=${deployer.app.server.lib.portal.dir}" />
+			<jvmarg value="-Ddeployer.base.dir=${lp.plugins.dir}/dist" />
+			<jvmarg value="-Ddeployer.dest.dir=${deployer.dest.dir}" />
+			<jvmarg value="-Ddeployer.app.server.type=${deployer.app.server.type}" />
+			<jvmarg value="-Ddeployer.unpack.war=true" />
+			<jvmarg value="-Ddeployer.file.pattern=*-layouttpl-*.war" />
+		</java>
+
+		<java
+			classname="com.liferay.portal.tools.deploy.PortletDeployer"
+			classpathref="project.classpath"
+			fork="true"
+			newenvironment="true"
+		>
+
+			<!-- Required Arguments -->
+
+			<jvmarg value="-Dexternal-properties=com/liferay/portal/tools/dependencies/portal-tools.properties" />
+			<jvmarg value="-Dliferay.lib.portal.dir=${deployer.app.server.lib.portal.dir}" />
+			<jvmarg value="-Ddeployer.base.dir=${lp.plugins.dir}/dist" />
+			<jvmarg value="-Ddeployer.dest.dir=${deployer.dest.dir}" />
+			<jvmarg value="-Ddeployer.app.server.type=${deployer.app.server.type}" />
+			<jvmarg value="-Ddeployer.aui.taglib.dtd=util-taglib/classes/META-INF/aui.tld" />
+			<jvmarg value="-Ddeployer.portlet.taglib.dtd=util-taglib/classes/META-INF/liferay-portlet.tld" />
+			<jvmarg value="-Ddeployer.portlet-ext.taglib.dtd=util-taglib/classes/META-INF/liferay-portlet-ext.tld" />
+			<jvmarg value="-Ddeployer.security.taglib.dtd=util-taglib/classes/META-INF/liferay-security.tld" />
+			<jvmarg value="-Ddeployer.theme.taglib.dtd=util-taglib/classes/META-INF/liferay-theme.tld" />
+			<jvmarg value="-Ddeployer.ui.taglib.dtd=util-taglib/classes/META-INF/liferay-ui.tld" />
+			<jvmarg value="-Ddeployer.util.taglib.dtd=util-taglib/classes/META-INF/liferay-util.tld" />
+			<jvmarg value="-Ddeployer.unpack.war=true" />
+			<jvmarg value="-Ddeployer.file.pattern=*-portlet-*.war" />
+
+			<!-- Optional Arguments -->
+
+			<jvmarg value="-Ddeployer.tomcat.lib.dir=${app.server.tomcat.lib.global.dir}" />
+
+			<!-- Dependent Libraries -->
+
+			<arg value="util-bridges/util-bridges.jar" />
+			<arg value="util-java/util-java.jar" />
+			<arg value="util-taglib/util-taglib.jar" />
+		</java>
+
+		<java
+			classname="com.liferay.portal.tools.deploy.ThemeDeployer"
+			classpathref="project.classpath"
+			fork="true"
+			newenvironment="true"
+		>
+
+			<!-- Required Arguments -->
+
+			<jvmarg value="-Dexternal-properties=com/liferay/portal/tools/dependencies/portal-tools.properties" />
+			<jvmarg value="-Dliferay.lib.portal.dir=${deployer.app.server.lib.portal.dir}" />
+			<jvmarg value="-Ddeployer.base.dir=${lp.plugins.dir}/dist" />
+			<jvmarg value="-Ddeployer.dest.dir=${deployer.dest.dir}" />
+			<jvmarg value="-Ddeployer.app.server.type=${deployer.app.server.type}" />
+			<jvmarg value="-Ddeployer.theme.taglib.dtd=util-taglib/classes/META-INF/liferay-theme.tld" />
+			<jvmarg value="-Ddeployer.util.taglib.dtd=util-taglib/classes/META-INF/liferay-util.tld" />
+			<jvmarg value="-Ddeployer.unpack.war=true" />
+			<jvmarg value="-Ddeployer.file.pattern=*-theme-*.war" />
+
+			<!-- Optional Arguments -->
+
+			<jvmarg value="-Ddeployer.tomcat.lib.dir=${app.server.tomcat.lib.global.dir}" />
+
+			<!-- Dependent Libraries -->
+
+			<arg value="util-java/util-java.jar" />
+			<arg value="util-taglib/util-taglib.jar" />
+		</java>
+
+		<java
+			classname="com.liferay.portal.tools.deploy.WebDeployer"
+			classpathref="project.classpath"
+			fork="true"
+			newenvironment="true"
+		>
+
+			<!-- Required Arguments -->
+
+			<jvmarg value="-Dexternal-properties=com/liferay/portal/tools/dependencies/portal-tools.properties" />
+			<jvmarg value="-Dliferay.lib.portal.dir=${deployer.app.server.lib.portal.dir}" />
+			<jvmarg value="-Ddeployer.base.dir=${lp.plugins.dir}/dist" />
+			<jvmarg value="-Ddeployer.dest.dir=${deployer.dest.dir}" />
+			<jvmarg value="-Ddeployer.app.server.type=${deployer.app.server.type}" />
+			<jvmarg value="-Ddeployer.unpack.war=true" />
+			<jvmarg value="-Ddeployer.file.pattern=*-web-*.war" />
+
+			<!-- Optional Arguments -->
+
+			<jvmarg value="-Ddeployer.tomcat.lib.dir=${app.server.tomcat.lib.global.dir}" />
+
+			<!-- Dependent Libraries -->
+
+			<arg value="util-java/util-java.jar" />
+		</java>
+	</target>
+
+	<target name="dist">
+		<if>
+			<available file="${patching.tool.source.dir}" type="dir" />
+			<then>
+				<ant dir="${patching.tool.source.dir}" target="all" inheritAll="false" />
+			</then>
+		</if>
+
+		<exec dir="${project.dir}" executable="cmd.exe" os="${os.windows}">
+			<arg line="/c svn --username ${svn.username} --password ${svn.password} update -r ${svn.revision}" />
+		</exec>
+
+		<exec dir="${lp.source.dir}" executable="cmd.exe" os="${os.windows}">
+			<arg line="/c svn --username ${svn.username} --password ${svn.password} update -r ${svn.revision}" />
+		</exec>
+
+		<exec dir="${lp.plugins.dir}" executable="cmd.exe" os="${os.windows}">
+			<arg line="/c svn --username ${svn.username} --password ${svn.password} update -r ${svn.revision}" />
+		</exec>
+
+		<antcall target="all" />
+
+		<delete dir="${lp.plugins.dir}/dist" />
+
+		<delete dir="${liferay.home}/data" />
+		<delete dir="${liferay.home}/deploy" />
+
+		<antcall target="doc" />
+
+		<delete dir="dist" />
+		<mkdir dir="dist" />
+
+		<delete dir="tools/zip_tmpl/license" />
+		<mkdir dir="tools/zip_tmpl/license" />
+
+		<copy file="copyright.txt" todir="tools/zip_tmpl/license" />
+		<copy file="lib/versions.html" todir="tools/zip_tmpl/license" />
+
+		<antcall target="zip-portal-war" />
+
+		<antcall target="build-dist-plugins" />
+
+		<antcall target="build-dist-geronimo" />
+		<antcall target="build-dist-glassfish" />
+		<antcall target="build-dist-jboss" />
+		<antcall target="build-dist-jetty" />
+		<antcall target="build-dist-jonas" />
+		<antcall target="build-dist-resin" />
+		<antcall target="build-dist-tcat" />
+		<antcall target="build-dist-tomcat" />
+
+		<antcall target="zip-api" />
+		<antcall target="zip-geronimo" />
+		<antcall target="zip-glassfish" />
+		<antcall target="zip-jboss" />
+		<antcall target="zip-jetty" />
+		<antcall target="zip-jonas" />
+		<antcall target="zip-patching-tool" />
+		<antcall target="zip-portal-client" />
+		<antcall target="zip-portal-dependencies" />
+		<antcall target="zip-resin" />
+		<antcall target="zip-sql" />
+		<antcall target="zip-src" />
+		<antcall target="zip-tcat" />
+		<antcall target="zip-tomcat" />
+
+		<!--<antcall target="build-dist-sql-oracle" />-->
+
+		<ant dir="${lp.plugins.dir}" target="extract-plugins-sdk" inheritAll="false" />
+
+		<move file="${lp.plugins.dir}/dist/liferay-plugins-sdk-${lp.version}.zip" tofile="dist/liferay-plugins-sdk-${lp.version}.zip" />
+
+		<echo file="${lp.plugins.dir}/build.${user.name}.properties">plugins.includes=${lp.plugins.includes.misc}</echo>
+
+		<ant dir="${lp.plugins.dir}" target="all" inheritAll="false" />
+
+		<antcall target="rename-dist-files" />
+
+		<if>
+			<isset property="dist.username" />
+			<then>
+				<scp todir="${dist.username}:${dist.password}@${dist.host}:/home/${dist.username}" trust="yes">
+					<fileset dir="dist" />
+				</scp>
+			</then>
+		</if>
+
+		<echo>Manually run "ant -buildfile build-maven.xml deploy-release-artifacts" if the
+release was successful.</echo>
+	</target>
+
+	<target name="prepare-generated-files">
+		<ant dir="portal-impl" target="build-iw" inheritAll="false" />
+		<ant dir="portal-impl" target="build-services" inheritAll="false" />
+		<ant dir="portal-impl" target="build-wsdds" inheritAll="false" />
+
+		<antcall target="all" />
+
+		<ant dir="sql" target="rebuild-mysql" inheritAll="false" />
+
+		<parallel>
+			<exec dir="${app.server.tomcat.bin.dir}" executable="startup.bat" resolveexecutable="true" />
+
+			<sequential>
+				<waitfor>
+					<http url="http://localhost:8080" />
+				</waitfor>
+
+				<ant dir="portal-client" target="build-client" inheritAll="false" />
+
+				<exec dir="${app.server.tomcat.bin.dir}" executable="shutdown.bat" resolveexecutable="true" />
+			</sequential>
+		</parallel>
+	</target>
+
+	<target name="rename-dist-files">
+ 		<antcall target="rename-dist-plugin-files" />
+		<antcall target="rename-dist-portal-files" />
+	</target>
+
+	<target name="rename-dist-plugin-files">
+		<tstamp>
+			<format property="tstamp.value" pattern="yyyyMMddkkmmssSSS" />
+		</tstamp>
+
+		<for param="dist.plugin.file">
+			<path>
+				<fileset
+					dir="${lp.plugins.dir}/dist"
+				/>
+			</path>
+			<sequential>
+				<antelope:stringutil string="@{dist.plugin.file}" property="dist.plugin.file.endindex">
+					<antelope:lastindexof string="." />
+				</antelope:stringutil>
+
+				<antelope:stringutil string="@{dist.plugin.file}" property="dist.plugin.file.prefix">
+					<antelope:substring beginindex="0" endindex="${dist.plugin.file.endindex}" />
+				</antelope:stringutil>
+
+				<antelope:stringutil string="@{dist.plugin.file}" property="dist.plugin.file.suffix">
+					<antelope:substring beginindex="${dist.plugin.file.endindex}" />
+				</antelope:stringutil>
+
+				<move
+					file="@{dist.plugin.file}"
+					tofile="${dist.plugin.file.prefix}-${tstamp.value}${dist.plugin.file.suffix}"
+					overwrite="true"
+				/>
+			</sequential>
+		</for>
+	</target>
+
+	<target name="rename-dist-portal-files">
+		<tstamp>
+			<format property="tstamp.value" pattern="yyyyMMddkkmmssSSS" />
+		</tstamp>
+
+		<for param="dist.portal.file">
+			<path>
+				<fileset
+					dir="dist"
+				/>
+			</path>
+			<sequential>
+				<antelope:stringutil string="@{dist.portal.file}" property="dist.portal.file.endindex">
+					<antelope:lastindexof string="." />
+				</antelope:stringutil>
+
+				<antelope:stringutil string="@{dist.portal.file}" property="dist.portal.file.prefix">
+					<antelope:substring beginindex="0" endindex="${dist.portal.file.endindex}" />
+				</antelope:stringutil>
+
+				<antelope:stringutil string="@{dist.portal.file}" property="dist.portal.file.suffix">
+					<antelope:substring beginindex="${dist.portal.file.endindex}" />
+				</antelope:stringutil>
+
+				<move
+					file="@{dist.portal.file}"
+					tofile="${dist.portal.file.prefix}-${tstamp.value}${dist.portal.file.suffix}"
+					overwrite="true"
+				/>
+			</sequential>
+		</for>
+	</target>
+
+	<target name="unzip-geronimo">
+		<delete dir="${app.server.geronimo.dir}" />
+
+		<if>
+			<not>
+				<available file="${app.server.parent.dir}/${app.server.geronimo.zip.name}" />
+			</not>
+			<then>
+				<mkdir dir="${app.server.parent.dir}" />
+
+				<get
+					dest="${app.server.parent.dir}/${app.server.geronimo.zip.name}"
+					src="${app.server.geronimo.zip.url}"
+					verbose="true"
+				/>
+			</then>
+		</if>
+
+		<unzip
+			dest="${app.server.parent.dir}"
+			src="${app.server.parent.dir}/${app.server.geronimo.zip.name}"
+		>
+			<mapper
+				type="glob"
+				from="geronimo-tomcat6-minimal-${app.server.geronimo.version}/*"
+				to="geronimo-${app.server.geronimo.version}/*"
+			/>
+		</unzip>
+
+		<chmod perm="a+x">
+			<fileset dir="${app.server.geronimo.bin.dir}">
+				<include name="*.sh"/>
+			</fileset>
+		</chmod>
+	</target>
+
+	<target name="unzip-glassfish">
+		<delete dir="${app.server.glassfish.dir}" />
+
+		<if>
+			<not>
+				<available file="${app.server.parent.dir}/${app.server.glassfish.zip.name}" />
+			</not>
+			<then>
+				<mkdir dir="${app.server.parent.dir}" />
+
+				<get
+					dest="${app.server.parent.dir}/${app.server.glassfish.zip.name}"
+					src="${app.server.glassfish.zip.url}"
+					verbose="true"
+				/>
+			</then>
+		</if>
+
+		<unzip
+			 dest="${app.server.parent.dir}"
+			 src="${app.server.parent.dir}/${app.server.glassfish.zip.name}"
+		>
+			<patternset
+				includes="glassfish3/glassfish/**"
+			/>
+			<mapper
+				type="glob"
+				from="glassfish3/glassfish/*"
+				to="${app.server.glassfish.dir}/*"
+			/>
+		</unzip>
+
+		<chmod perm="a+x">
+			<fileset dir="${app.server.glassfish.bin.dir}">
+				<exclude name="*.bat"/>
+			</fileset>
+		</chmod>
+
+		<replace file="${app.server.glassfish.dir}/osgi/felix/conf/config.properties">
+			<replacetoken><![CDATA[org.xml.sax.helpers ${endorsed-standard-packages}]]></replacetoken>
+			<replacevalue><![CDATA[org.xml.sax.helpers, org.apache.felix.framework ${endorsed-standard-packages}]]></replacevalue>
+		</replace>
+
+		<if>
+			<equals arg1="${app.server.glassfish.version}" arg2="3.1.1" />
+			<then>
+
+				<!-- GLASSFISH-17242 -->
+
+				<zip
+					basedir="tools/servers/glassfish/patches/GLASSFISH-17242/classes"
+					destfile="${app.server.glassfish.dir}/modules/deployment-admin.jar"
+					includes="**/InstanceDeployCommand.class"
+					update="yes"
+				/>
+
+				<zip
+					basedir="tools/servers/glassfish/patches/GLASSFISH-17242/classes"
+					destfile="${app.server.glassfish.dir}/modules/deployment-common.jar"
+					includes="**/Util.class"
+					update="yes"
+				/>
+
+				<zip
+					basedir="tools/servers/glassfish/patches/GLASSFISH-17242/classes"
+					destfile="${app.server.glassfish.dir}/modules/kernel.jar"
+					includes="**/SnifferManagerImpl*.class"
+					update="yes"
+				/>
+
+				<!-- GRIZZLY-1060 -->
+
+				<zip
+					basedir="tools/servers/glassfish/patches/GRIZZLY-1060/classes"
+					destfile="${app.server.glassfish.dir}/modules/grizzly-utils.jar"
+					includes="**/OutputWriter.class"
+					update="yes"
+				/>
+			</then>
+		</if>
+	</target>
+
+	<target name="unzip-jboss">
+		<delete dir="${app.server.jboss.dir}" />
+
+		<if>
+			<not>
+				<available file="${app.server.parent.dir}/${app.server.jboss.zip.name}" />
+			</not>
+			<then>
+				<mkdir dir="${app.server.parent.dir}" />
+
+				<get
+					dest="${app.server.parent.dir}/${app.server.jboss.zip.name}"
+					src="${app.server.jboss.zip.url}"
+					verbose="true"
+				/>
+			</then>
+		</if>
+
+		<unzip
+			dest="${app.server.parent.dir}"
+			src="${app.server.parent.dir}/${app.server.jboss.zip.name}"
+		>
+			<mapper
+				type="glob"
+				from="jboss-as-${app.server.jboss.version}.Final/*"
+				to="jboss-${app.server.jboss.version}/*"
+			/>
+		</unzip>
+
+		<chmod perm="a+x">
+			<fileset dir="${app.server.jboss.bin.dir}">
+				<include name="*.sh"/>
+			</fileset>
+		</chmod>
+
+		<replace file="${app.server.jboss.dir}/modules/javax/activation/api/main/module.xml">
+			<replacetoken><![CDATA[<resources>]]></replacetoken>
+			<replacevalue><![CDATA[
+					<dependencies>
+						<module name="javax.api" />
+						<module name="javax.mail.api">
+							<imports><include path="META-INF" /></imports>
+						</module>
+					</dependencies>
+				<resources>]]>
+			</replacevalue>
+		</replace>
+
+		<replace file="${app.server.jboss.dir}/standalone/configuration/standalone.xml">
+			<replacetoken><![CDATA[enable-welcome-root="true"]]></replacetoken>
+			<replacevalue><![CDATA[enable-welcome-root="false"]]></replacevalue>
+		</replace>
+
+		<replace file="${app.server.jboss.dir}/standalone/configuration/standalone.xml">
+			<replacetoken><![CDATA[<deployment-scanner scan-interval="]]></replacetoken>
+			<replacevalue><![CDATA[<deployment-scanner deployment-timeout="120" scan-interval="]]></replacevalue>
+		</replace>
+
+		<replace file="${app.server.jboss.dir}/standalone/configuration/standalone.xml">
+			<replacetoken><![CDATA[<security-domains>]]></replacetoken>
+			<replacevalue><![CDATA[<security-domains>
+				<security-domain name="PortalRealm">
+					<authentication>
+						<login-module code="com.liferay.portal.security.jaas.PortalLoginModule" flag="required"/>
+					</authentication>
+				</security-domain>]]>
+			</replacevalue>
+		</replace>
+	</target>
+
+	<target name="unzip-jetty">
+		<delete dir="${app.server.jetty.dir}" />
+
+		<if>
+			<not>
+				<available file="${app.server.parent.dir}/${app.server.jetty.zip.name}" />
+			</not>
+			<then>
+				<mkdir dir="${app.server.parent.dir}" />
+
+				<get
+					dest="${app.server.parent.dir}/${app.server.jetty.zip.name}"
+					src="${app.server.jetty.zip.url}"
+					verbose="true"
+				/>
+			</then>
+		</if>
+
+		<unzip
+			dest="${app.server.parent.dir}"
+			src="${app.server.parent.dir}/${app.server.jetty.zip.name}"
+		>
+			<patternset
+				excludes="jetty-hightide-${app.server.jetty.version}.v${app.server.jetty.version.date}/bin/**,jetty-hightide-${app.server.jetty.version}.v${app.server.jetty.version.date}/contexts/**,jetty-hightide-${app.server.jetty.version}.v${app.server.jetty.version.date}/contexts-available/**,jetty-hightide-${app.server.jetty.version}.v${app.server.jetty.version.date}/javadoc/**,jetty-hightide-${app.server.jetty.version}.v${app.server.jetty.version.date}/overlays/**,jetty-hightide-${app.server.jetty.version}.v${app.server.jetty.version.date}/webapps/**"
+			/>
+			<mapper
+				type="glob"
+				from="jetty-hightide-${app.server.jetty.version}.v${app.server.jetty.version.date}/*"
+				to="jetty-${app.server.jetty.version}/*"
+			/>
+		</unzip>
+
+		<mkdir dir="${app.server.parent.dir}/jetty-${app.server.jetty.version}/bin" />
+		<mkdir dir="${app.server.parent.dir}/jetty-${app.server.jetty.version}/contexts" />
+		<mkdir dir="${app.server.parent.dir}/jetty-${app.server.jetty.version}/temp" />
+		<mkdir dir="${app.server.parent.dir}/jetty-${app.server.jetty.version}/webapps" />
+	</target>
+
+	<target name="unzip-jonas">
+		<delete dir="${app.server.jonas.dir}" />
+
+		<if>
+			<not>
+				<available file="${app.server.parent.dir}/${app.server.jonas.zip.name}" />
+			</not>
+			<then>
+				<mkdir dir="${app.server.parent.dir}" />
+
+				<get
+					dest="${app.server.parent.dir}/${app.server.jonas.zip.name}"
+					src="${app.server.jonas.zip.url}"
+					verbose="true"
+				/>
+			</then>
+		</if>
+
+		<unzip
+			dest="${app.server.parent.dir}"
+			src="${app.server.parent.dir}/${app.server.jonas.zip.name}"
+		>
+			<patternset
+				excludes="jonas-full-${app.server.jonas.version}/examples/**,jonas-full-${app.server.jonas.version}/tutorial/**"
+			/>
+			<mapper
+				type="glob"
+				from="jonas-full-${app.server.jonas.version}/*"
+				to="jonas-${app.server.jonas.version}/*"
+			/>
+		</unzip>
+
+		<chmod perm="a+x">
+			<fileset dir="${app.server.jonas.bin.dir}">
+				<exclude name="*.bat"/>
+			</fileset>
+		</chmod>
+
+		<delete includeemptydirs="true" failonerror="false">
+			<fileset
+				dir="${app.server.parent.dir}/jonas-${app.server.jonas.version}/conf"
+				includes="db2.properties,FirebirdSQL.properties,HSQL1.properties,jetty*.xml,InstantDB1.properties,InterBase1.properties,MailMimePartDS1.properties,MailSession1.properties,McKoi1.properties,MySQL.properties,Oracle1.properties,PostgreSQL1.properties,spy.properties,Sybase1.properties"
+			/>
+			<fileset
+				dir="${app.server.parent.dir}/jonas-${app.server.jonas.version}/deploy"
+				includes="ctxroot.xml,doc.xml,jdbc-ds.xml,jonasAdmin.xml"
+			/>
+			<fileset
+				dir="${app.server.parent.dir}/jonas-${app.server.jonas.version}/repositories/maven2-internal"
+				includes="org/mortbay/**,org/ow2/jonas/documentation/**,org/ow2/jonas/jonas-admin/**,org/ow2/jonas/jonas-ctxroot/**"
+			/>
+		</delete>
+
+		<replace file="${app.server.parent.dir}/jonas-${app.server.jonas.version}/conf/jonas.properties">
+			<replacefilter token="HSQL1" value="" />
+			<replacefilter token="jtm,db,resource,ejb3,jaxws,web,ear,depmonitor" value="jtm,resource,ejb3,jaxws,web,ear,validation,depmonitor" />
+			<replacefilter token="jonas.development    true" value="jonas.development    false" />
+		</replace>
+
+		<replace file="${app.server.parent.dir}/jonas-${app.server.jonas.version}/conf/tomcat6-server.xml">
+			<replacefilter token="9000" value="8080" />
+			<replacefilter token="9009" value="8009" />
+			<replacefilter token="9043" value="8443" />
+		</replace>
+
+		<replace file="${app.server.parent.dir}/jonas-${app.server.jonas.version}/conf/osgi/defaults.properties">
+			<replacetoken><![CDATA[javase-packages ${javase-${javase.version}}]]></replacetoken>
+			<replacevalue><![CDATA[javase-packages ${javase-${javase.version}}, com.sun.jmx.mbeanserver, com.sun.crypto.provider, org.apache.felix.framework]]></replacevalue>
+		</replace>
+	</target>
+
+	<target name="unzip-resin">
+		<delete dir="${app.server.parent.dir}/resin-${app.server.resin.version}" />
+
+		<if>
+			<not>
+				<available file="${app.server.parent.dir}/${app.server.resin.zip.name}" />
+			</not>
+			<then>
+				<mkdir dir="${app.server.parent.dir}" />
+
+				<get
+					dest="${app.server.parent.dir}/${app.server.resin.zip.name}"
+					src="${app.server.resin.zip.url}"
+					verbose="true"
+				/>
+			</then>
+		</if>
+
+		<unzip
+			dest="${app.server.parent.dir}"
+			src="${app.server.parent.dir}/${app.server.resin.zip.name}"
+		>
+			<patternset
+				excludes="resin-${app.server.resin.version}/php/**,resin-${app.server.resin.version}/webapps/**"
+			/>
+		</unzip>
+
+		<mkdir dir="${app.server.parent.dir}/resin-${app.server.resin.version}/webapps" />
+	</target>
+
+	<target name="unzip-tomcat">
+		<delete dir="${app.server.tomcat.dir}" />
+
+		<if>
+			<not>
+				<available file="${app.server.parent.dir}/${app.server.tomcat.zip.name}" />
+			</not>
+			<then>
+				<mkdir dir="${app.server.parent.dir}" />
+
+				<get
+					dest="${app.server.parent.dir}/${app.server.tomcat.zip.name}"
+					src="${app.server.tomcat.zip.url}"
+					verbose="true"
+				/>
+			</then>
+		</if>
+
+		<script classpathref="project.classpath" language="beanshell">
+			String appServerTomcatDir = project.getProperty("app.server.tomcat.dir");
+
+			int forwardSlashPos = appServerTomcatDir.lastIndexOf("/");
+			int backSlashPos = appServerTomcatDir.lastIndexOf("\\");
+
+			int pos = forwardSlashPos;
+
+			if ((backSlashPos != -1) &amp;&amp; (backSlashPos > forwardSlashPos)) {
+				pos = backSlashPos;
+			}
+
+			String appServerTomcatDirName = appServerTomcatDir.substring(pos + 1);
+
+			project.setProperty("app.server.tomcat.dir.name", appServerTomcatDirName);
+		</script>
+
+		<unzip
+			dest="${app.server.parent.dir}"
+			src="${app.server.parent.dir}/${app.server.tomcat.zip.name}"
+		>
+			<patternset
+				excludes="apache-tomcat-${app.server.tomcat.version}/webapps/**"
+			/>
+			<mapper
+				type="glob"
+				from="apache-tomcat-${app.server.tomcat.version}/*"
+				to="${app.server.tomcat.dir.name}/*"
+			/>
+		</unzip>
+
+		<chmod perm="a+x">
+			<fileset dir="${app.server.tomcat.bin.dir}">
+				<include name="*.sh"/>
+			</fileset>
+		</chmod>
+
+		<mkdir dir="${app.server.tomcat.dir}/webapps" />
+	</target>
+
+	<target name="unzip-weblogic">
+		<var name="wl.home" value="${app.server.weblogic.dir}/wlserver" />
+
+		<delete dir="${app.server.weblogic.dir}" />
+
+		<if>
+			<not>
+				<available file="${app.server.parent.dir}/${app.server.weblogic.zip.name}" />
+			</not>
+			<then>
+				<mkdir dir="${app.server.parent.dir}" />
+
+				<echo>Please download the WebLogic zip file from ${app.server.weblogic.zip.url} and
+place it here: ${app.server.parent.dir}/${app.server.weblogic.zip.name}. Then
+rerun this task.</echo>
+			</then>
+		</if>
+
+		<unzip
+			dest="${app.server.weblogic.dir}"
+			src="${app.server.parent.dir}/${app.server.weblogic.zip.name}"
+		/>
+
+		<tstamp>
+			<format property="tstamp.value" pattern="yyyyMMddkkmmssSSS" />
+		</tstamp>
+
+		<mkdir dir="${tstamp.value}" />
+
+		<echo file="${tstamp.value}/create-weblogic-domain.py">readTemplate('${wl.home}/common/templates/domains/wls.jar')
+
+set('Name', '${app.server.weblogic.instance.name}')
+
+cd('/Security/%s/User/%s' % ('${app.server.weblogic.instance.name}', 'weblogic'))
+
+set('UserPassword', 'testing123')
+
+cd('/Servers/AdminServer')
+
+set('ListenAddress', '')
+set('ListenPort', 8080)
+
+writeDomain('${app.server.weblogic.instance.dir}')
+
+closeTemplate()</echo>
+
+		<if>
+			<os family="windows" />
+			<then>
+				<exec dir="${app.server.weblogic.dir}" executable="cmd">
+					<env key="MW_HOME" value="${app.server.weblogic.dir}" />
+					<arg value="/c" />
+					<arg value="configure.cmd" />
+				</exec>
+
+				<echo file="${tstamp.value}/create-weblogic-domain.bat">@echo off
+
+set "USER_MEM_ARGS=-Xmx1024m -XX:PermSize=256m"
+
+set "MW_HOME=${app.server.weblogic.dir}"
+
+set "WL_HOME=${wl.home}"
+
+call %WL_HOME%/common/bin/commEnv.cmd
+
+set "CLASSPATH=%FMWCONFIG_CLASSPATH%"
+
+"${env.JAVA_HOME}/bin/java" weblogic.WLST create-weblogic-domain.py</echo>
+
+				<exec dir="${tstamp.value}" executable="cmd">
+					<arg value="/c" />
+					<arg value="create-weblogic-domain.bat" />
+				</exec>
+
+				<echo file="${app.server.weblogic.instance.dir}/run.bat">@echo off
+
+set "USER_MEM_ARGS=-Xmx1024m -XX:PermSize=512m"
+
+set "MW_HOME=${app.server.weblogic.dir}"
+
+call startWebLogic.cmd</echo>
+			</then>
+			<else>
+				<exec dir="${app.server.weblogic.dir}" executable="sh">
+					<env key="MW_HOME" value="${app.server.weblogic.dir}" />
+					<arg value="configure.sh" />
+				</exec>
+
+				<echo file="${tstamp.value}/create-weblogic-domain.sh">#!/bin/sh
+
+export USER_MEM_ARGS="-Xmx1024m -XX:PermSize=256m"
+
+export MW_HOME="${app.server.weblogic.dir}"
+
+export WL_HOME="${wl.home}"
+
+source ${WL_HOME}/common/bin/commEnv.sh
+
+export CLASSPATH=${FMWCONFIG_CLASSPATH}
+
+${env.JAVA_HOME}/bin/java weblogic.WLST create-weblogic-domain.py</echo>
+
+				<chmod
+					file="${tstamp.value}/create-weblogic-domain.sh"
+					perm="744"
+				/>
+
+				<exec dir="${tstamp.value}" executable="sh">
+					<arg value="create-weblogic-domain.sh" />
+				</exec>
+
+				<echo file="${app.server.weblogic.instance.dir}/run.sh">#!/bin/sh
+
+export USER_MEM_ARGS="-Xmx1024m -XX:PermSize=512m"
+
+export MW_HOME="${app.server.weblogic.dir}"
+
+sh startWebLogic.sh</echo>
+
+				<chmod
+					file="${app.server.weblogic.instance.dir}/run.sh"
+					perm="744"
+				/>
+			</else>
+		</if>
+
+		<delete dir="${tstamp.value}" />
+	</target>
+
+	<target name="zip-api">
+		<delete file="dist/liferay-portal-doc-${lp.version}.zip" failonerror="false" />
+
+		<zip destfile="dist/liferay-portal-doc-${lp.version}.zip">
+			<zipfileset
+				dir="api"
+				includes="**/*.css,**/*.gif,**/*.html"
+				prefix="liferay-portal-doc-${lp.version}"
+			/>
+		</zip>
+	</target>
+
+	<target name="zip-db-upgrade">
+		<tstamp>
+			<format property="tstamp.value" pattern="yyyyMMddkkmmssSSS" />
+		</tstamp>
+
+		<mkdir dir="${tstamp.value}/lib" />
+
+		<copy todir="${tstamp.value}">
+			<fileset
+				dir="tools/db-upgrade"
+			/>
+		</copy>
+
+		<copy todir="${tstamp.value}/lib">
+			<fileset
+				dir="portal-impl"
+				includes="portal-impl.jar"
+			/>
+			<fileset
+				dir="portal-service"
+				includes="portal-service.jar"
+			/>
+			<fileset
+				dir="lib/development"
+			/>
+			<fileset
+				dir="lib/global"
+			/>
+			<fileset
+				dir="lib/portal"
+			/>
+			<fileset
+				dir="util-java"
+				includes="util-java.jar"
+			/>
+		</copy>
+
+		<zip destfile="dist/liferay-portal-db-upgrade-${lp.version}.zip">
+			<zipfileset
+				dir="${tstamp.value}"
+				excludes="run.sh"
+				prefix="liferay-portal-db-upgrade-${lp.version}"
+			/>
+			<zipfileset
+				dir="${tstamp.value}"
+				filemode="744"
+				includes="run.sh"
+				prefix="liferay-portal-db-upgrade-${lp.version}"
+			/>
+		</zip>
+
+		<delete dir="${tstamp.value}" />
+	</target>
+
+	<target name="zip-executable">
+		<delete file="dist/${zip.executable.file}-${lp.version}.zip" failonerror="false" />
+
+		<antelope:stringutil string="${zip.executable.dir}" property="zip.executable.dir.beginindex">
+			<lastindexof string="/" />
+		</antelope:stringutil>
+
+		<math
+			datatype="int"
+			operand1="${zip.executable.dir.beginindex}"
+			operand2="1"
+			operation="+"
+			result="zip.executable.dir.beginindex"
+		/>
+
+		<antelope:stringutil string="${zip.executable.dir}" property="zip.executable.dir.name">
+			<substring beginindex="${zip.executable.dir.beginindex}" />
+		</antelope:stringutil>
+
+		<mkdir dir="dist" />
+
+		<if>
+			<available file="${zip.executable.dir}/../data" />
+			<then>
+				<zip
+					destfile="dist/${zip.executable.file}-${lp.version}.zip"
+				>
+					<zipfileset
+						dir="${zip.executable.dir}"
+						excludes="**/*.sh"
+						prefix="liferay-portal-${lp.version}/${zip.executable.dir.name}"
+					/>
+					<zipfileset
+						dir="${zip.executable.dir}"
+						filemode="744"
+						includes="**/*.sh"
+						prefix="liferay-portal-${lp.version}/${zip.executable.dir.name}"
+					/>
+					<zipfileset
+						dir="${zip.executable.dir}/../data"
+						prefix="liferay-portal-${lp.version}/data"
+					/>
+					<zipfileset
+						dir="tools/zip_tmpl"
+						prefix="liferay-portal-${lp.version}"
+					/>
+				</zip>
+
+				<delete dir="${zip.executable.dir}/../patching-tool" />
+
+				<if>
+					<available file="${patching.tool.source.dir}" type="dir" />
+					<then>
+						<mkdir dir="${zip.executable.dir}/../patching-tool" />
+
+						<copy todir="${zip.executable.dir}/../patching-tool">
+							<fileset
+								dir="${patching.tool.source.dir}/scripts"
+							/>
+						</copy>
+
+						<mkdir dir="${zip.executable.dir}/../patching-tool/lib" />
+
+						<copy todir="${zip.executable.dir}/../patching-tool/lib">
+							<fileset
+								dir="${patching.tool.source.dir}"
+								includes="patching-tool.jar"
+							/>
+							<fileset
+								dir="${patching.tool.source.dir}/lib"
+							/>
+						</copy>
+
+						<mkdir dir="${zip.executable.dir}/../patching-tool/logs" />
+						<mkdir dir="${zip.executable.dir}/../patching-tool/patches" />
+
+						<exec dir="${zip.executable.dir}/../patching-tool" executable="cmd.exe">
+							<arg line="/c patching-tool.bat auto-discovery" />
+						</exec>
+
+						<zip
+							destfile="dist/${zip.executable.file}-${lp.version}.zip"
+							update="yes"
+						>
+							<zipfileset
+								dir="${zip.executable.dir}/../patching-tool"
+								prefix="liferay-portal-${lp.version}/patching-tool"
+							/>
+						</zip>
+					</then>
+				</if>
+			</then>
+			<else>
+
+				<!--
+				Only used by when zipping Tcat admin and agent
+				-->
+
+				<zip
+					destfile="dist/${zip.executable.file}-${lp.version}.zip"
+				>
+					<zipfileset
+						dir="${zip.executable.dir}"
+						excludes="**/*.sh"
+						prefix="liferay-portal-${lp.version}/${zip.executable.dir.name}"
+					/>
+					<zipfileset
+						dir="${zip.executable.dir}"
+						filemode="744"
+						includes="**/*.sh"
+						prefix="liferay-portal-${lp.version}/${zip.executable.dir.name}"
+					/>
+				</zip>
+			</else>
+		</if>
+	</target>
+
+	<target name="zip-geronimo">
+		<antcall target="zip-executable">
+			<param name="zip.executable.file" value="liferay-portal-geronimo" />
+			<param name="zip.executable.dir" value="${app.server.geronimo.dir}" />
+		</antcall>
+	</target>
+
+	<target name="zip-glassfish">
+		<antcall target="zip-executable">
+			<param name="zip.executable.file" value="liferay-portal-glassfish" />
+			<param name="zip.executable.dir" value="${app.server.glassfish.dir}" />
+		</antcall>
+	</target>
+
+	<target name="zip-jboss">
+		<antcall target="zip-executable">
+			<param name="zip.executable.file" value="liferay-portal-jboss" />
+			<param name="zip.executable.dir" value="${app.server.jboss.dir}" />
+		</antcall>
+	</target>
+
+	<target name="zip-jetty">
+		<antcall target="zip-executable">
+			<param name="zip.executable.file" value="liferay-portal-jetty" />
+			<param name="zip.executable.dir" value="${app.server.jetty.dir}" />
+		</antcall>
+	</target>
+
+	<target name="zip-jonas">
+		<antcall target="zip-executable">
+			<param name="zip.executable.file" value="liferay-portal-jonas" />
+			<param name="zip.executable.dir" value="${app.server.jonas.dir}" />
+		</antcall>
+	</target>
+
+	<target name="zip-patching-tool">
+		<if>
+			<available file="${patching.tool.source.dir}" type="dir" />
+			<then>
+				<tstamp>
+					<format property="tstamp.value" pattern="yyyyMMddkkmmssSSS" />
+				</tstamp>
+
+				<mkdir dir="${tstamp.value}/lib" />
+				<mkdir dir="${tstamp.value}/logs" />
+				<mkdir dir="${tstamp.value}/patches" />
+
+				<copy todir="${tstamp.value}/lib">
+					<fileset
+						dir="${patching.tool.source.dir}/lib"
+					/>
+					<fileset
+						dir="${patching.tool.source.dir}"
+						includes="patching-tool.jar"
+					/>
+				</copy>
+
+				<copy todir="${tstamp.value}">
+					<fileset
+						dir="${patching.tool.source.dir}/scripts"
+					/>
+				</copy>
+
+				<zip destfile="dist/liferay-portal-patching-tool-${lp.version}.zip">
+					<zipfileset
+						dir="${tstamp.value}"
+						excludes="patching-tool.sh"
+						prefix="liferay-portal-patching-tool-${lp.version}"
+					/>
+					<zipfileset
+						dir="${tstamp.value}"
+						filemode="744"
+						includes="patching-tool.sh"
+						prefix="liferay-portal-patching-tool-${lp.version}"
+					/>
+				</zip>
+
+				<delete dir="${tstamp.value}" />
+			</then>
+		</if>
+	</target>
+
+	<target name="zip-portal-client">
+		<delete file="dist/liferay-portal-client-${lp.version}.zip" failonerror="false" />
+
+		<zip destfile="dist/liferay-portal-client-${lp.version}.zip">
+			<zipfileset
+				dir="lib/development"
+				includes="activation.jar,mail.jar"
+				prefix="liferay-portal-client-${lp.version}"
+			/>
+			<zipfileset
+				dir="lib/portal"
+				includes="axis.jar,commons-discovery.jar,commons-logging.jar,jaxrpc.jar,portal-client.jar,saaj-api.jar,saaj-impl.jar,wsdl4j.jar"
+				prefix="liferay-portal-client-${lp.version}"
+			/>
+		</zip>
+	</target>
+
+	<target name="zip-portal-dependencies">
+		<delete file="dist/liferay-portal-dependencies-${lp.version}.zip" failonerror="false" />
+
+		<zip destfile="dist/liferay-portal-dependencies-${lp.version}.zip">
+			<zipfileset
+				dir="lib/development"
+				includes="hsql.jar"
+				prefix="liferay-portal-dependencies-${lp.version}"
+			/>
+			<zipfileset
+				dir="lib/global"
+				includes="*.jar"
+				prefix="liferay-portal-dependencies-${lp.version}"
+			/>
+			<zipfileset
+				dir="portal-service"
+				includes="portal-service.jar"
+				prefix="liferay-portal-dependencies-${lp.version}"
+			/>
+		</zip>
+	</target>
+
+	<target name="zip-portal-war">
+		<antcall target="zip-portal-war-2.4" />
+		<!--<antcall target="zip-portal-war-2.3" />
+		<antcall target="zip-portal-war-2.4-with-dependencies" />
+		<antcall target="zip-portal-war-2.3-with-dependencies" />-->
+	</target>
+
+	<target name="zip-portal-war-2.3">
+		<tstamp>
+			<format property="tstamp.value" pattern="yyyyMMddkkmmssSSS" />
+		</tstamp>
+
+		<java
+			classname="com.liferay.portal.tools.WebXML23Converter"
+			classpathref="project.classpath"
+			fork="true"
+			maxmemory="128m"
+			newenvironment="true"
+		>
+			<jvmarg value="-Dexternal-properties=com/liferay/portal/tools/dependencies/portal-tools.properties" />
+			<jvmarg value="-Dorg.apache.commons.logging.Log=org.apache.commons.logging.impl.Log4JLogger" />
+			<arg value="${app.server.portal.dir}/WEB-INF/web.xml" />
+			<arg value="${tstamp.value}/WEB-INF/web.xml" />
+		</java>
+
+		<delete file="dist/liferay-portal-${lp.version}-servlet23.war" failonerror="false" />
+
+		<copy
+			file="dist/liferay-portal-${lp.version}.war"
+			tofile="dist/liferay-portal-${lp.version}-servlet23.war"
+			overwrite="true"
+		/>
+
+		<zip
+			basedir="${tstamp.value}"
+			destfile="dist/liferay-portal-${lp.version}-servlet23.war"
+			update="yes"
+		/>
+
+		<delete dir="${tstamp.value}" />
+	</target>
+
+	<target name="zip-portal-war-2.3-with-dependencies">
+		<tstamp>
+			<format property="tstamp.value" pattern="yyyyMMddkkmmssSSS" />
+		</tstamp>
+
+		<copy todir="${tstamp.value}/WEB-INF/lib">
+			<fileset
+				dir="${app.server.lib.global.dir}"
+				includes="annotations.jar,portal-service.jar,portlet.jar"
+			/>
+		</copy>
+
+		<delete file="dist/liferay-portal-${lp.version}-servlet23-with-dependencies.war" failonerror="false" />
+
+		<copy
+			file="dist/liferay-portal-${lp.version}-servlet23.war"
+			tofile="dist/liferay-portal-${lp.version}-servlet23-with-dependencies.war"
+			overwrite="true"
+		/>
+
+		<zip
+			basedir="${tstamp.value}"
+			destfile="dist/liferay-portal-${lp.version}-servlet23-with-dependencies.war"
+			update="yes"
+		/>
+
+		<delete dir="${tstamp.value}" />
+	</target>
+
+	<target name="zip-portal-war-2.4">
+		<delete file="dist/liferay-portal-${lp.version}.war" failonerror="false" />
+
+		<zip
+			basedir="${app.server.portal.dir}"
+			destfile="dist/liferay-portal-${lp.version}.war"
+			excludes="html/js/editor/_fckeditor/**,html/js/editor/fckeditor/_samples/**"
+		/>
+
+		<tstamp>
+			<format property="tstamp.value" pattern="yyyyMMddkkmmssSSS" />
+		</tstamp>
+
+		<!--
+		LPS-3408
+		-->
+
+		<copy todir="${tstamp.value}/WEB-INF/lib">
+			<fileset
+				dir="lib/portal"
+				includes="ccpp.jar"
+			/>
+		</copy>
+
+		<zip
+			basedir="${tstamp.value}"
+			destfile="dist/liferay-portal-${lp.version}.war"
+			update="yes"
+		/>
+
+		<delete dir="${tstamp.value}" />
+	</target>
+
+	<target name="zip-portal-war-2.4-with-dependencies">
+		<tstamp>
+			<format property="tstamp.value" pattern="yyyyMMddkkmmssSSS" />
+		</tstamp>
+
+		<copy todir="${tstamp.value}/WEB-INF/lib">
+			<fileset
+				dir="${app.server.lib.global.dir}"
+				includes="annotations.jar,portal-service.jar,portlet.jar"
+			/>
+		</copy>
+
+		<delete file="dist/liferay-portal-${lp.version}-with-dependencies.war" failonerror="false" />
+
+		<copy
+			file="dist/liferay-portal-${lp.version}.war"
+			tofile="dist/liferay-portal-${lp.version}-with-dependencies.war"
+			overwrite="true"
+		/>
+
+		<zip
+			basedir="${tstamp.value}"
+			destfile="dist/liferay-portal-${lp.version}-with-dependencies.war"
+			update="yes"
+		/>
+
+		<delete dir="${tstamp.value}" />
+	</target>
+
+	<target name="zip-resin">
+		<antcall target="zip-executable">
+			<param name="zip.executable.file" value="liferay-portal-resin" />
+			<param name="zip.executable.dir" value="${app.server.resin.dir}" />
+		</antcall>
+	</target>
+
+	<target name="zip-sql">
+		<delete file="dist/liferay-portal-sql-${lp.version}.zip" failonerror="false" />
+
+		<zip destfile="dist/liferay-portal-sql-${lp.version}.zip">
+			<zipfileset
+				dir="sql"
+				includes="**/*.sql"
+				prefix="liferay-portal-sql-${lp.version}"
+			/>
+		</zip>
+	</target>
+
+	<target name="zip-src">
+		<delete file="dist/liferay-portal-src-${lp.version}.zip" failonerror="false" />
+
+		<zip destfile="dist/liferay-portal-src-${lp.version}.zip">
+			<zipfileset
+				dir="${lp.source.dir}"
+				excludes="portal-web/test/**,portal-web/test-ant-templates/**"
+				prefix="liferay-portal-src-${lp.version}"
+			/>
+		</zip>
+	</target>
+
+	<target name="zip-tcat">
+		<property name="tcat.dir" value="${app.server.parent.dir}/tcat-6.4.4" />
+
+		<antcall target="zip-executable">
+			<param name="zip.executable.file" value="liferay-portal-tcat-admin" />
+			<param name="zip.executable.dir" value="${tcat.dir}/admin" />
+		</antcall>
+
+		<antcall target="zip-executable">
+			<param name="zip.executable.file" value="liferay-portal-tcat-agent" />
+			<param name="zip.executable.dir" value="${tcat.dir}/agent" />
+		</antcall>
+	</target>
+
+	<target name="zip-tomcat">
+		<antcall target="zip-executable">
+			<param name="zip.executable.file" value="liferay-portal-tomcat" />
+			<param name="zip.executable.dir" value="${app.server.tomcat.dir}" />
+		</antcall>
+	</target>
+</project>
